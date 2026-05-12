@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Racing Trainer – Fizikai Modell Dokumentáció</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f; --surface: #13131a; --surface2: #1c1c28;
+      --accent: #e8ff00; --danger: #ff2d2d; --ok: #00e676;
+      --blue: #5599ff; --text: #d8d8e8; --muted: #666; --border: #2a2a3a;
+    }
+    body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif;
+      font-size: 14px; line-height: 1.7; }
+    .page { max-width: 860px; margin: 0 auto; padding: 40px 24px; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    h1 { font-size: 26px; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+    h2 { font-size: 18px; color: var(--accent); border-bottom: 1px solid var(--border);
+         padding-bottom: 6px; margin: 40px 0 14px; }
+    h3 { font-size: 14px; color: var(--blue); margin: 24px 0 8px; text-transform: uppercase;
+         letter-spacing: 1px; }
+    p  { margin-bottom: 10px; color: var(--text); }
+    ul { padding-left: 20px; margin-bottom: 10px; }
+    li { margin-bottom: 4px; }
+
+    .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+
+    code {
+      font-family: 'Consolas', monospace; font-size: 13px;
+      background: var(--surface2); color: var(--accent);
+      padding: 2px 6px; border-radius: 3px;
+    }
+    pre {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      padding: 16px; overflow-x: auto; margin: 12px 0;
+      font-family: 'Consolas', monospace; font-size: 13px; color: #c8ffc0;
+      line-height: 1.5;
+    }
+    pre .cm  { color: #555; }
+    pre .kw  { color: #5599ff; }
+    pre .num { color: #ff9966; }
+
+    .formula-box {
+      background: var(--surface); border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0; padding: 14px 18px; margin: 12px 0;
+      font-family: 'Consolas', monospace; font-size: 13px; color: #e0ffc0;
+    }
+
+    table {
+      width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13px;
+    }
+    th {
+      background: var(--surface2); color: var(--accent); text-align: left;
+      padding: 8px 12px; border-bottom: 2px solid var(--border);
+      text-transform: uppercase; font-size: 11px; letter-spacing: 1px;
+    }
+    td { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    tr:hover td { background: #12121e; }
+    td.good  { color: var(--ok); font-weight: 600; }
+    td.bad   { color: var(--danger); font-weight: 600; }
+    td.warn  { color: #ffaa00; font-weight: 600; }
+    td.blue  { color: var(--blue); font-weight: 600; }
+
+    .note {
+      background: #1a1a00; border: 1px solid #444400; border-radius: 6px;
+      padding: 12px 16px; margin: 12px 0; font-size: 13px; color: #cccc66;
+    }
+    .danger-box {
+      background: #1a0000; border: 1px solid #440000; border-radius: 6px;
+      padding: 12px 16px; margin: 12px 0; font-size: 13px; color: #ff8888;
+    }
+    .ok-box {
+      background: #001a0a; border: 1px solid #004422; border-radius: 6px;
+      padding: 12px 16px; margin: 12px 0; font-size: 13px; color: #66ffaa;
+    }
+
+    .legend { display: flex; gap: 20px; flex-wrap: wrap; margin: 12px 0; }
+    .legend-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+    .dot { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; }
+
+    .back { margin-bottom: 24px; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <p class="back"><a href="index.html">← Vissza az alkalmazáshoz</a></p>
+
+  <h1>Racing Trainer</h1>
+  <p class="subtitle">Fizikai Modell &amp; Edzési Rendszer – Teljes Dokumentáció</p>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <h2>1. Alapkoncepció</h2>
+
+  <p>A szoftver nem pályát vagy autót szimulál. Egy <strong>absztrakt tapadási modellt</strong> futtat, amely a gázpedál és a kormányállás összefüggéséből számítja, mikor következik be kipörgés. A cél az <strong>izommemória fejlesztése</strong>: a láb és a kéz megtanulják a helyes összehangolt mozgást.</p>
+
+  <div class="ok-box">
+    A legjobb szimulátoros versenyzők nem tudatosan gondolkodnak a gázadáson – <strong>izommemóriából</strong> csinálják. Ezt a szoftver ismétléses visszajelzéssel (hang + vizuális flash) épít.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <h2>2. A Görbe Sáv (Grip Corridor)</h2>
+
+  <p>A képernyőn mindig egy <strong>háromvonalas sáv</strong> jelenik meg:</p>
+
+  <div class="legend">
+    <div class="legend-item"><div class="dot" style="background:#e8ff00"></div> Felső limit – kipörgési küszöb</div>
+    <div class="legend-item"><div class="dot" style="background:#e8ff00;opacity:0.4"></div> Target vonal – ideális gázállás</div>
+    <div class="legend-item"><div class="dot" style="background:#555"></div> Alsó limit – alatta "túl óvatos"</div>
+    <div class="legend-item"><div class="dot" style="background:rgba(232,255,0,0.1);border:1px solid #e8ff00"></div> Sáv kitöltés – a helyes zóna</div>
+  </div>
+
+  <h3>Felső limit képlet (alap)</h3>
+  <div class="formula-box">
+    steerDev = |steering − 0.5| × 2 &nbsp; <span style="color:#555">// 0 = egyenes, 1 = teli zár</span><br>
+    upperLimit = max(0.05, &nbsp;1.0 − steerDev × k)
+  </div>
+
+  <p>Ahol <code>k</code> az érzékenységi szorzó (alapértelmezés: 1.2, a sliderrel állítható).</p>
+
+  <h3>A sávszélesség kiszámítása</h3>
+  <div class="formula-box">
+    lowerLimit = upperLimit × bandRatio &nbsp;&nbsp; <span style="color:#555">// módtól függ (0.42–0.68)</span><br>
+    target &nbsp;&nbsp;&nbsp;&nbsp; = upperLimit × targetRatio &nbsp; <span style="color:#555">// módtól függ (0.75–0.88)</span>
+  </div>
+
+  <p>Minél nagyobb a kormányállás, annál kisebb az <code>upperLimit</code>, és ezzel együtt arányosan szűkül az egész sáv. Teli kormányzárban a sáv extrém szűk, mert bármilyen gázadat kipörgést okoz.</p>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <h2>3. SpinFactor – Kipörgés és Visszaépülés</h2>
+
+  <p>A <strong>spinFactor</strong> (0.1–1.0) az aktuális tapadást jelzi. Ha a gáz meghaladja a felső limitet, a spinFactor csökkeni kezd – és ezzel <em>az egész sáv lejjebb tolódik</em>. Ezt mutatja az alul látható színes progress bar:</p>
+
+  <ul>
+    <li><span style="color:#00e676">Zöld</span> – &gt;70% spinFactor, teljes tapadás</li>
+    <li><span style="color:#e8ff00">Sárga</span> – 40–70%, részleges tapadás</li>
+    <li><span style="color:#ff2d2d">Piros</span> – &lt;40%, kipörgés közeli állapot</li>
+  </ul>
+
+  <div class="formula-box">
+    <span style="color:#555">// Ha over limit:</span><br>
+    spinFactor -= spinDropRate × dt<br><br>
+    <span style="color:#555">// Ha under limit:</span><br>
+    spinFactor += spinRecoveryRate × dt<br><br>
+    spinFactor = clamp(spinFactor, minSpinFactor, 1.0)
+  </div>
+
+  <div class="note">
+    A sáv nem ugrik vissza azonnal! A visszaépülési idő módtól függ – ez teszi a különböző autótípusokat életszerűvé.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <h2>4. Módok Összehasonlítása</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Mód</th>
+        <th>Target arány</th>
+        <th>Sávszélesség arány</th>
+        <th>Drop sebesség</th>
+        <th>Recovery sebesség</th>
+        <th>Min spinFactor</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Alap / Görbekövetés</strong></td>
+        <td>82%</td><td>58%</td>
+        <td class="warn">1.5 /s</td>
+        <td class="warn">0.8 /s</td>
+        <td>20%</td>
+      </tr>
+      <tr>
+        <td><strong>Forma 1</strong></td>
+        <td>88%</td><td class="bad">68% (szűk)</td>
+        <td class="bad">2.8 /s (gyors)</td>
+        <td class="bad">0.18 /s (lassú)</td>
+        <td class="bad">10%</td>
+      </tr>
+      <tr>
+        <td><strong>Rallycross</strong></td>
+        <td class="warn">75% (szándékos slip)</td><td class="good">42% (tág)</td>
+        <td class="good">0.35 /s (lassú)</td>
+        <td class="good">2.8 /s (gyors)</td>
+        <td class="good">50%</td>
+      </tr>
+      <tr>
+        <td><strong>MX-5 / GT</strong></td>
+        <td>86%</td><td>62%</td>
+        <td class="warn">1.0 /s</td>
+        <td class="warn">0.55 /s</td>
+        <td class="bad">15%</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Magyarázat – mit jelent a "drop sebesség"?</h3>
+  <p>Ha pontosan 1 másodpercig vagy a felső limit felett:</p>
+  <ul>
+    <li><strong>F1:</strong> spinFactor csökken 2.8-del → szinte rögtön eléri a 10%-os minimumot. A sáv a korábbi értékének 10%-ára zsugorodik. Visszaépülés: ~5 másodperc.</li>
+    <li><strong>Rallycross:</strong> spinFactor csökken 0.35-del → a sáv 65%-ra esik. Visszaépülés: &lt;0.5 másodperc.</li>
+  </ul>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <h2>5. Mód-specifikus Extra Mechanikák</h2>
+
+  <h3>Forma 1 – Sebességfüggő Limit</h3>
+  <div class="formula-box">
+    speedFactor = 0.20 + virtualSpeed × 0.80<br>
+    upperLimit = speedFactor × (1.0 − steerDev × k × (1 − virtualSpeed × 0.4))<br><br>
+    <span style="color:#555">// virtualSpeed: 0–1, 300 km/h léptékű<br>
+    // Kipörögve: virtualSpeed csökken (−0.22/s)<br>
+    // Tapadásban: virtualSpeed nő (+0.06/s)</span>
+  </div>
+  <p>Alacsony sebességnél (&lt;60 km/h) a felső limit nagyon alacsony (≈20%), tehát kigyorsításkor extrém finom gázadás kell. 200+ km/h felett akár 100%-ra is nyomhatsz. A kék progress bar mutatja a virtuális sebességet.</p>
+
+  <h3>Rallycross – Optimális Slip Zóna</h3>
+  <div class="formula-box">
+    upperLimit = max(0.10, &nbsp;0.88 − steerDev × k × 0.65)
+  </div>
+  <p>A zöld sáv a képernyőn (68–82%) jelöli az optimális kerékforgást. RX-ben nem a tapadás megőrzése a cél, hanem az ellenőrzött csúszás. Ezért a sáv target értéke <strong>75%</strong> (a felső limit alatt), és a visszaépülés gyors.</p>
+
+  <h3>MX-5 / GT – Gumihőmérséklet Büntetés</h3>
+  <div class="formula-box">
+    <span style="color:#555">// Ha &gt;1 mp-ig limit felett vagy:</span><br>
+    tireTempPenalty += 0.08 × dt &nbsp; <span style="color:#555">// max 0.40 (40% veszteség)</span><br><br>
+    upperLimit = max(0.05, &nbsp;1.0 − steerDev × k − tireTempPenalty)<br><br>
+    <span style="color:#555">// Hűlés (ha alatt vagy):</span><br>
+    tireTempPenalty -= 0.015 × dt
+  </div>
+  <p>A gumi lassabban hűl, mint ahogy melegszik. Ha folyamatosan a limit fölé mész, az effektív határ egyre lejjebb csúszik – maximum 40%-kal. Ez szimulálja az iRacing "nyúlós gumi" érzést.</p>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <h2>6. Görbekövetés Mód</h2>
+  <p>A target vonal egy S-görbe (smooth-step) mentén halad:</p>
+  <div class="formula-box">
+    <span style="color:#555">// t ∈ [0, 1], ismétlődő ciklus</span><br>
+    v(t) = 2t² &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ha t &lt; 0.5<br>
+    v(t) = 1 − (−2t+2)² / 2 &nbsp;&nbsp; ha t ≥ 0.5
+  </div>
+  <p>A gáz limitjai (upper/lower) a kormányállásból számítódnak, a target vonal ezen belül jelzi az ideális pozíciót. A cél: a target vonalon maradni miközben a sáv is figyelmes kontroll alatt van.</p>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <h2>7. Reakciós Drill Mód</h2>
+  <p>Minden ~3 másodpercben a szoftver random kormányállást ad (<code>0.2–0.8</code> tartomány). Egy zöld függőleges vonal jelzi az új célállást. A felhasználónak a gázt az új limitnek megfelelően kell korrigálni. A reakcióidő mérése azonnal megkezdődik a trigger pillanatától.</p>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <h2>8. Input – Logitech G923</h2>
+
+  <p>Az alkalmazás a <strong>Gamepad API</strong>-t használja (nem WebHID), ezért a FFB zavartalanul működik.</p>
+
+  <table>
+    <thead>
+      <tr><th>Axis index</th><th>Fizikai kontrol</th><th>Irány</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="blue">0</td><td>Kormánykerék</td><td>−1 = bal, +1 = jobb</td></tr>
+      <tr><td class="blue">1</td><td>Gázpedál</td><td>+1 = felengedve, −1 = lenyomva <span style="color:#ff8800">(invertált!)</span></td></tr>
+      <tr><td class="blue">2</td><td>Fékpedál</td><td>+1 = felengedve, −1 = lenyomva (invertált)</td></tr>
+      <tr><td class="blue">3</td><td>Kuplungpedál</td><td>+1 = felengedve, −1 = lenyomva (invertált)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="danger-box">
+    Ha a G923 PS4-es módban van (kék LED), az axis indexek eltérőek lehetnek. PC módra kapcsolj (tartsd a MODE gombot).
+  </div>
+
+  <div class="note">
+    Az axis viewer az alkalmazás főoldalán mutatja az összes tengely aktuális értékét. Nyomd le a gázt – amelyik bar mozdul, az az index.
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <h2>9. Statisztika</h2>
+
+  <table>
+    <thead>
+      <tr><th>Mutató</th><th>Számítás</th><th>Jelentés</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Pontosság %</strong></td>
+        <td><code>(frames − overFrames) / frames × 100</code></td>
+        <td>Hány % időt töltöttél limit alatt</td>
+      </tr>
+      <tr>
+        <td><strong>Kipörgések</strong></td>
+        <td>Limit-átlépések száma (leading edge)</td>
+        <td>Hányszor lépted át a felső limitet</td>
+      </tr>
+      <tr>
+        <td><strong>Legjobb sorozat</strong></td>
+        <td>Max consecutive limit-under frames</td>
+        <td>Leghosszabb tiszta szakasz</td>
+      </tr>
+      <tr>
+        <td><strong>Reakcióidő</strong></td>
+        <td>Trigger → korrekció (ms)</td>
+        <td>Csak Reakciós módban aktív</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p style="margin-top:32px;color:var(--muted);font-size:12px;">
+    Racing Trainer — v1.0 &nbsp;|&nbsp; <a href="index.html">Vissza az alkalmazáshoz</a>
+  </p>
+</div>
+</body>
+</html>
