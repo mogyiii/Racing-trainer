@@ -3,6 +3,7 @@ import { GripModel } from './grip-model.js';
 import { Renderer } from './canvas.js';
 import { Stats } from './stats.js';
 import { CurveFollowerMode, ReactionDrillMode } from './modes.js';
+import { FFBController } from './ffb.js';
 
 const MODE_DESCS = {
   curve:      'Kövesd a sárga TARGET vonalat a gázpedállal. Maradj a sávon belül. Kormányállásnál szűkül a megengedett tartomány.',
@@ -25,6 +26,8 @@ class App {
     this._animId = null;
     this._lastTime = 0;
     this._audioCtx = null;
+
+    this.ffb = new FFBController();
 
     this.renderer = new Renderer(document.getElementById('main-canvas'));
     this._initUI();
@@ -66,6 +69,25 @@ class App {
     document.getElementById('btn-start').addEventListener('click', () => this._start());
     document.getElementById('btn-stop').addEventListener('click',  () => this._stop());
     document.getElementById('btn-export').addEventListener('click', () => this._export());
+
+    document.getElementById('btn-ffb-connect').addEventListener('click', () => this._connectFFB());
+
+    const ffbSlider = document.getElementById('ffb-strength');
+    ffbSlider.addEventListener('input', () => {
+      this.ffb.strength = +ffbSlider.value;
+      document.getElementById('ffb-strength-val').textContent = Math.round(ffbSlider.value * 100) + '%';
+      if (this.ffb.enabled) this.ffb.applyNow();
+    });
+
+    const ffbToggle = document.getElementById('ffb-enabled');
+    ffbToggle.addEventListener('change', () => {
+      this.ffb.enabled = ffbToggle.checked;
+      if (!ffbToggle.checked) {
+        this.ffb.disableAll();
+      } else {
+        this.ffb.applyNow();
+      }
+    });
   }
 
   _pollStatus() {
@@ -103,6 +125,41 @@ class App {
     requestAnimationFrame(() => this._pollStatus());
   }
 
+  async _connectFFB() {
+    const btn = document.getElementById('btn-ffb-connect');
+    const status = document.getElementById('ffb-status');
+    if (!navigator.hid) {
+      status.textContent = 'WebHID nem támogatott (használj Chrome-ot)';
+      status.className = 'status disconnected';
+      return;
+    }
+    try {
+      // Csak Logitech eszközök (0x046D) – a G923 több HID interface-ként jelenik meg,
+      // a felhasználónak a "G923 Racing Wheel" nevűt kell választania (nem keyboard/media).
+      const devices = await navigator.hid.requestDevice({ filters: [{ vendorId: 0x046D }] });
+      if (!devices.length) return;
+      const dev = devices[0];
+      if (!dev.opened) await dev.open();
+      this.ffb.gpIndex = this.input._gpIndex;
+      const ok = await this.ffb.attachDevice(dev);
+      if (ok === 'no-hid-ffb') {
+        status.textContent = 'G923 Xbox: WebHID motorvezérlés nem elérhető – Gamepad API rezgés (fallback) aktív';
+        status.className = 'status disconnected';
+        btn.textContent = 'FFB újracsatlakozás';
+      } else if (ok) {
+        status.textContent = 'FFB: ' + dev.productName;
+        status.className = 'status connected';
+        btn.textContent = 'FFB újracsatlakozás';
+      } else {
+        status.textContent = 'FFB csatlakozva, de a parancsküldés sikertelen – nézd a konzolt (F12)';
+        status.className = 'status disconnected';
+      }
+    } catch (e) {
+      status.textContent = 'FFB hiba: ' + e.message;
+      status.className = 'status disconnected';
+    }
+  }
+
   _start() {
     this.running = true;
     this.stats.reset();
@@ -126,6 +183,7 @@ class App {
   _stop() {
     this.running = false;
     cancelAnimationFrame(this._animId);
+    this.ffb.deactivate();
     document.getElementById('btn-start').disabled = false;
     document.getElementById('btn-stop').disabled  = true;
     this._updateStatsUI();
@@ -161,6 +219,9 @@ class App {
       virtualSpeed:    this.grip.virtualSpeed,
       tireTempPenalty: this.grip.tireTempPenalty,
     });
+
+    this.ffb.gpIndex = this.input._gpIndex;
+    this.ffb.update({ over, spinFactor: this.grip.spinFactor }, norm);
 
     if (over) this._alertSpin();
     this._updateStatsUI();

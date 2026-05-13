@@ -45,6 +45,26 @@
       </div>
     </div>
 
+    <!-- Force Feedback panel -->
+    <div id="ffb-panel" class="panel">
+      <h2 style="margin:0 0 10px">Force Feedback (WebHID)</h2>
+      <p class="hint" style="background:#2a1a00;border:1px solid #ff8800;color:#ffb347;padding:6px 10px;border-radius:6px;margin-bottom:8px">
+        ⚠ <strong>G923 Xbox/PC verzió:</strong> A WebHID FFB böngészőből nem elérhető – a motor vezérlése az Xbox/Windows stack-en keresztül zajlik, amit browser nem tud megnyitni. A <em>Gamepad API rezgés</em> (kipörögésnél vibráció) automatikusan aktív, WebHID csatlakoztatás nem szükséges.
+      </p>
+      <p class="hint">G29/G920 esetén: csatlakoztass WebHID-en – az app átveszi az FFB irányítását: kanyarban rezeg, csúszásnál elengedi a kormányt.</p>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:8px">
+        <button id="btn-ffb-connect">FFB csatlakoztatás (WebHID)</button>
+        <div id="ffb-status" class="status disconnected">Nem csatlakoztatva (Gamepad rezgés fallback)</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <label><input type="checkbox" id="ffb-enabled" checked> FFB engedélyezve</label>
+        <label>Erő:
+          <input type="range" id="ffb-strength" min="0" max="1" step="0.05" value="1">
+          <span id="ffb-strength-val">100%</span>
+        </label>
+      </div>
+    </div>
+
     <div id="mode-panel" class="panel">
       <div class="mode-tabs">
         <button class="tab active" data-mode="curve">Görbekövetés</button>
